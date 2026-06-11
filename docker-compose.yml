@@ -159,6 +159,20 @@ services:
       job-service:
         condition: service_started
 
+  python-executor-service:
+    build:
+      context: ./python-executor-service
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JOB_SERVICE_URL: http://job-service:8080
+      PYTHON_EXECUTION_TIMEOUT_SEC: 30
+      PYTHON_SCRIPTS_DIR: /app/scripts
+    depends_on:
+      kafka:
+        condition: service_healthy
+      job-service:
+        condition: service_started
+
   gateway-service:
     build:
       context: .

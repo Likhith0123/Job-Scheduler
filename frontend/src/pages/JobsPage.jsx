@@ -9,6 +9,27 @@ const CRON_PRESETS = [
   { label: 'Daily at 2am', value: '0 0 2 * * *' },
 ];
 
+const PAYLOAD_PRESETS = [
+  {
+    label: 'Default (Java)',
+    payload: '{"message":"Hello from UI"}',
+  },
+  {
+    label: 'Python inline',
+    payload: JSON.stringify({
+      type: 'python',
+      code: "print('Hello from Python executor')\nprint(6 * 7)",
+    }, null, 2),
+  },
+  {
+    label: 'Python module',
+    payload: JSON.stringify({
+      type: 'python',
+      module: 'scripts.hello',
+    }, null, 2),
+  },
+];
+
 function statusClass(status) {
   return `badge badge-${status.toLowerCase()}`;
 }
@@ -109,12 +130,24 @@ export default function JobsPage() {
           <label>
             Payload (JSON)
             <textarea
-              rows={4}
+              rows={6}
               value={form.payload}
               onChange={(e) => setForm({ ...form, payload: e.target.value })}
               required
             />
           </label>
+          <div className="preset-row">
+            {PAYLOAD_PRESETS.map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setForm({ ...form, payload: preset.payload })}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
           <button type="submit" className="btn btn-primary">Create</button>
         </form>
       )}

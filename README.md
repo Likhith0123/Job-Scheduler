@@ -9,8 +9,9 @@ Client → API Gateway → Auth / Job services
               ↓
          Redis (rate limits)
 
-Scheduler → polls Job service → publishes Kafka (job.due)
-Executor  → consumes Kafka    → records runs in Job service
+Scheduler → polls Job service → publishes Kafka (job.due / job.due.python)
+Java executor    → default jobs
+Python executor  → payload.type = python (runs real Python code)
 ```
 
 | Service | Port (local) | Responsibility |
@@ -19,7 +20,8 @@ Executor  → consumes Kafka    → records runs in Job service
 | auth-service | 8081 | Tenants and database-backed API keys |
 | job-service | 8082 | Job definitions and execution history |
 | scheduler-service | 8083 | Cron polling and Kafka dispatch |
-| executor-service | 8084 | Job execution workers |
+| executor-service | 8084 | Default Java job execution (simulated) |
+| python-executor-service | — | Python job execution (inline code or modules) |
 
 ## Quick start (Docker)
 
@@ -76,6 +78,41 @@ curl -X POST http://localhost:8080/api/jobs \
 
 Spring cron format is used (`sec min hour day month weekday`).
 
+### Python jobs
+
+Set `"type": "python"` in the payload. The scheduler routes these to the Python executor.
+
+Inline code:
+
+```bash
+curl -X POST http://localhost:8080/api/jobs \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: cfk_...' \
+  -d '{
+    "name": "python-task",
+    "cronExpression": "0/30 * * * * *",
+    "payload": {
+      "type": "python",
+      "code": "print(\"Hello from Python\")\nprint(2 + 2)"
+    }
+  }'
+```
+
+Built-in module (`python-executor-service/scripts/hello.py`):
+
+```json
+{
+  "type": "python",
+  "module": "scripts.hello"
+}
+```
+
+Or seed demo Python jobs:
+
+```bash
+API_KEY=cfk_... ./scripts/demo-python.sh
+```
+
 ## Local development (without Docker apps)
 
 Start infrastructure only:
@@ -92,6 +129,11 @@ mvn -pl job-service spring-boot:run
 mvn -pl scheduler-service spring-boot:run
 mvn -pl executor-service spring-boot:run
 mvn -pl gateway-service spring-boot:run
+
+# Python executor (separate terminal)
+cd python-executor-service
+pip install -r requirements.txt
+KAFKA_BOOTSTRAP_SERVERS=localhost:9092 JOB_SERVICE_URL=http://localhost:8082 python -m app.main
 ```
 
 Build everything:
@@ -115,6 +157,7 @@ kubectl apply -f k8s/
 
 - **Multi-tenant API keys** stored as SHA-256 hashes in PostgreSQL
 - **Per-tenant Redis rate limiting** at the gateway
-- **Kafka-based dispatch** between scheduler and executor
+- **Kafka-based dispatch** between scheduler and Java/Python executors
+- **Python executor** for real script execution (`code` or `module` payloads)
 - **OpenTelemetry traces** exported to Jaeger
 - **Prometheus metrics** from Spring Actuator on every service

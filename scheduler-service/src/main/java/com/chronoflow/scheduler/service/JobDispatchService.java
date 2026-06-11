@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class JobDispatchService {
@@ -38,12 +39,20 @@ public class JobDispatchService {
                     job.payload(),
                     Instant.now()
             );
-            kafkaTemplate.send(ChronoFlowTopics.JOB_DUE, job.id().toString(), event);
+            String topic = resolveTopic(job.payload());
+            kafkaTemplate.send(topic, job.id().toString(), event);
             jobServiceClient.markScheduled(job.id());
             dispatched++;
-            log.info("Dispatched job {} ({}) for tenant {}", job.id(), job.name(), job.tenantId());
+            log.info("Dispatched job {} ({}) to topic {} for tenant {}", job.id(), job.name(), topic, job.tenantId());
         }
 
         return dispatched;
+    }
+
+    private String resolveTopic(Map<String, Object> payload) {
+        if (payload != null && "python".equals(payload.get("type"))) {
+            return ChronoFlowTopics.JOB_DUE_PYTHON;
+        }
+        return ChronoFlowTopics.JOB_DUE;
     }
 }
