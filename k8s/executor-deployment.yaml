@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: executor-service
+  namespace: chronoflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: executor-service
+  template:
+    metadata:
+      labels:
+        app: executor-service
+    spec:
+      containers:
+        - name: executor-service
+          image: chronoflow/executor-service:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: chronoflow-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: executor-service
+  namespace: chronoflow
+spec:
+  selector:
+    app: executor-service
+  ports:
+    - port: 8080
+      targetPort: 8080
